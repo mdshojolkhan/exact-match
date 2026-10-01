@@ -15,6 +15,7 @@ import {
   type ModelEngine,
 } from "../model-engine/engine";
 import { getModelEngine } from "../model-engine/index.server";
+import { resolveChatEngine } from "../providers/index.server";
 import { shortTermMemory } from "../memory/index.server";
 import { planStore } from "../planning/index.server";
 import { toolRegistry } from "../tools/builtin.server";
@@ -90,7 +91,12 @@ export async function handleChatTurn(
   request: ChatRequest,
   deps: OrchestratorDeps = {},
 ): Promise<ChatResponse> {
-  const engine = deps.engine ?? getModelEngine();
+  // Role is resolved server-side; injected engines (tests) run as admin.
+  const resolved = deps.engine
+    ? { engine: deps.engine, role: "admin" as const }
+    : resolveChatEngine(request.providerId, getModelEngine);
+  const engine = resolved.engine;
+  const aiRole = resolved.role;
   const registry = deps.registry ?? toolRegistry;
   const conversationId = request.conversationId ?? crypto.randomUUID();
   const mode: AssistantMode = request.mode ?? "companion";
@@ -125,6 +131,9 @@ export async function handleChatTurn(
     BASE_INSTRUCTIONS,
     MODE_INSTRUCTIONS[mode],
     "You may call the skills provided to you when they genuinely help. If a skill is not needed, answer directly without calling one.",
+    aiRole === "helper"
+      ? "You are a Helper AI. You cannot create, edit or delete workspace files. Offer code as suggestions in your reply instead."
+      : "",
     memoryNotes.length
       ? `Long-term memory the user saved (treat as facts about them):\n- ${memoryNotes.join("\n- ")}`
       : "",
@@ -133,7 +142,7 @@ export async function handleChatTurn(
     .join("\n\n");
 
   const loop = await runAgentLoop(
-    { system, messages: history, conversationId },
+    { system, messages: history, conversationId, aiRole },
     { engine, registry },
     {
       maxSteps: deps.maxSteps ?? DEFAULT_MAX_AGENT_STEPS,
@@ -158,6 +167,7 @@ export async function handleChatTurn(
     intent,
     conversationId,
     toolsUsed: loop.steps.map(toToolTrace),
+    aiRole,
     ...(plan.length ? { plan } : {}),
     ...(loop.steps.length ? { steps: loop.steps } : {}),
   };

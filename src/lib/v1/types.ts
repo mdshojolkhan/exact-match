@@ -38,6 +38,11 @@ export const chatRequestSchema = z.object({
    * are refused unless their id appears here.
    */
   approvedToolIds: z.array(z.string().min(1).max(80)).max(20).optional(),
+  /**
+   * Optional provider to answer this turn. A non-admin provider always runs
+   * as a Helper AI; the role is decided on the server, never by the client.
+   */
+  providerId: z.enum(["openai", "gemini", "xai"]).optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
@@ -112,6 +117,8 @@ export type ChatResponse = {
   intent: Intent;
   conversationId: string;
   toolsUsed: ToolTrace[];
+  /** Role the answering AI ran under (server-decided). */
+  aiRole?: "admin" | "helper";
   /** Task plan for this conversation, when one exists. */
   plan?: PlanStep[];
   /** Ordered action trace for this turn, when any actions ran. */
