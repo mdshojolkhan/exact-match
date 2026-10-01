@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
 import { AppShell } from '@/components/v1/app-shell';
+import { ProvidersSection } from '@/components/v1/providers-section';
 import {
   executeTool,
   fetchAssistantStatus,
@@ -99,6 +100,8 @@ function SettingsPage() {
             </p>
           )}
         </section>
+
+        <ProvidersSection />
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-6">
           <h2 className="text-sm font-semibold">Permission boundaries</h2>
