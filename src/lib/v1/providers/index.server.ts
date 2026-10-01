@@ -67,10 +67,10 @@ export function listProviders(): PublicProvider[] {
 }
 
 export type ProviderUpdate = {
-  apiKey?: string;
-  model?: string;
-  enabled?: boolean;
-  active?: boolean;
+  apiKey?: string | undefined;
+  model?: string | undefined;
+  enabled?: boolean | undefined;
+  active?: boolean | undefined;
 };
 
 export function updateProvider(id: ProviderId, update: ProviderUpdate) {
