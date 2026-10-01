@@ -19,7 +19,7 @@ import {
   type EngineToolCall,
   type ModelEngine,
 } from "../model-engine/engine";
-import { PermissionDeniedError } from "../security/permissions";
+import { PermissionDeniedError, type AiRole } from "../security/permissions";
 import { ToolError, type ToolRegistry } from "../tools/registry";
 import type { AgentStep } from "../types";
 
@@ -163,6 +163,7 @@ export async function runAgentLoop(
       const step = await executeToolCall(call, {
         registry,
         conversationId: request.conversationId,
+        aiRole: request.aiRole ?? "helper",
         approved,
         index: steps.length + 1,
       });
@@ -204,6 +205,7 @@ async function executeToolCall(
   context: {
     registry: ToolRegistry;
     conversationId: string;
+    aiRole: AiRole;
     approved: Set<string>;
     index: number;
   },
