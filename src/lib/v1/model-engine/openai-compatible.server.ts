@@ -73,12 +73,15 @@ export type OpenAiCompatibleConfig = {
   /** Header used to send the credential. Defaults to `Authorization: Bearer`. */
   authHeader?: string;
   supportsTools?: boolean;
+  /** Optional server-side key resolver (e.g. provider settings store). */
+  getApiKey?: () => string | undefined;
 };
 
 export function createOpenAiCompatibleEngine(
   config: OpenAiCompatibleConfig,
 ): ModelEngine {
-  const readKey = () => process.env[config.apiKeyEnv];
+  const readKey = () =>
+    config.getApiKey ? config.getApiKey() : process.env[config.apiKeyEnv];
 
   return {
     provider: config.provider,

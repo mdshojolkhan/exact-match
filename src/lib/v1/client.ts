@@ -63,3 +63,38 @@ export function executeTool(input: {
     body: JSON.stringify(input),
   });
 }
+
+// ---- AI providers (keys are sent to the server once and never read back) ----
+import type { PublicProvider, ProviderId } from "./providers/registry";
+
+export function fetchProviders(): Promise<PublicProvider[]> {
+  return request<PublicProvider[]>("/api/v1/providers");
+}
+
+export function saveProvider(input: {
+  id: ProviderId;
+  apiKey?: string;
+  model?: string;
+  enabled?: boolean;
+  active?: boolean;
+}): Promise<PublicProvider[]> {
+  return request<PublicProvider[]>("/api/v1/providers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, action: "save" }),
+  });
+}
+
+export function testProviderConnection(id: ProviderId): Promise<PublicProvider> {
+  return request<PublicProvider>("/api/v1/providers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, action: "test" }),
+  });
+}
+
+export function removeProviderConfig(id: ProviderId): Promise<PublicProvider[]> {
+  return request<PublicProvider[]>(`/api/v1/providers?id=${id}`, {
+    method: "DELETE",
+  });
+}
