@@ -133,7 +133,7 @@ const fileWrite: V1Tool<
   description:
     "Creates or updates a text file inside V1's own workspace. It cannot reach your device's filesystem.",
   requiresApproval: false,
-  permissions: ["fs:workspace"],
+  permissions: ["fs:workspace", "fs:workspace:write"],
   inputSchema: z.object({
     path: z.string().min(1).max(200),
     content: z.string().max(64_000),
@@ -184,7 +184,7 @@ const fileDelete: V1Tool<z.ZodObject<{ path: z.ZodString }>> = {
   description:
     "Deletes a file from V1's own workspace. Destructive, so it needs explicit approval.",
   requiresApproval: true,
-  permissions: ["fs:workspace"],
+  permissions: ["fs:workspace", "fs:workspace:write"],
   inputSchema: z.object({ path: z.string().min(1).max(200) }),
   async execute(input) {
     const removed = await workspaceStore.remove(input.path);

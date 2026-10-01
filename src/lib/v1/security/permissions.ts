@@ -18,6 +18,7 @@ export const ALL_PERMISSIONS = [
   "write:plan",
   "net:search",
   "fs:workspace",
+  "fs:workspace:write",
   "net:fetch",
   "device:control",
   "system:exec",
@@ -33,6 +34,7 @@ export const GRANTED_PERMISSIONS: readonly Permission[] = [
   "write:plan",
   "net:search",
   "fs:workspace",
+  "fs:workspace:write",
 ];
 
 /** Permissions that must never be granted automatically. */
@@ -54,6 +56,32 @@ export function assertPermissions(permissions: readonly Permission[]): void {
   if (denied.length > 0) {
     throw new PermissionDeniedError(denied);
   }
+}
+
+/**
+ * Who is acting:
+ *  - admin:  the single Admin AI (may modify the workspace / drive the App Builder)
+ *  - helper: any other AI (chat, analysis, suggestions — read-only workspace)
+ *  - user:   a direct human action from the UI (e.g. saving a file in the editor)
+ */
+export type AiRole = "admin" | "helper" | "user";
+
+/** Permissions each role may never use, regardless of phase grants. */
+export const ROLE_DENIED_PERMISSIONS: Record<AiRole, readonly Permission[]> = {
+  admin: [],
+  helper: ["fs:workspace:write"],
+  user: [],
+};
+
+export function isAllowedForRole(role: AiRole, permission: Permission): boolean {
+  return isPermissionGranted(permission) && !ROLE_DENIED_PERMISSIONS[role].includes(permission);
+}
+
+/** Server-side gate: throws when the role may not use these permissions. */
+export function assertRolePermissions(role: AiRole, permissions: readonly Permission[]): void {
+  assertPermissions(permissions);
+  const denied = permissions.filter((p) => ROLE_DENIED_PERMISSIONS[role].includes(p));
+  if (denied.length > 0) throw new PermissionDeniedError(denied);
 }
 
 export class PermissionDeniedError extends Error {

@@ -45,6 +45,8 @@ export type AgentLoopRequest = {
   system: string;
   messages: EngineMessage[];
   conversationId: string;
+  /** Role of the AI answering this turn. Defaults to least-privileged "helper". */
+  aiRole?: AiRole;
 };
 
 export type AgentLoopResult = {
@@ -124,7 +126,7 @@ export async function runAgentLoop(
   const steps: AgentStep[] = [];
   const messages: EngineMessage[] = [...request.messages];
 
-  const tools = engine.supportsTools ? registry.listForModel() : [];
+  const tools = engine.supportsTools ? registry.listForModel(request.aiRole ?? "helper") : [];
   let lastText = "";
   let iterations = 0;
 
@@ -261,7 +263,7 @@ async function executeToolCall(
     const result = await context.registry.run(
       tool.id,
       args.input,
-      { conversationId: context.conversationId },
+      { conversationId: context.conversationId, aiRole: context.aiRole },
       { approved: context.approved.has(tool.id) },
     );
     const summary = truncate(result);

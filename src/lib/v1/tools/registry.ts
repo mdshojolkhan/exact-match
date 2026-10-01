@@ -8,8 +8,10 @@
 import type { z } from "zod";
 import type { PublicTool } from "../types";
 import {
-  assertPermissions,
+  assertRolePermissions,
+  isAllowedForRole,
   isPermissionGranted,
+  type AiRole,
   type Permission,
 } from "../security/permissions";
 import type { EngineTool } from "../model-engine/engine";
@@ -21,6 +23,11 @@ import {
 export type ToolContext = {
   /** Conversation the tool was invoked from. */
   conversationId: string;
+  /**
+   * Role of the actor. Defaults to "helper" (least privilege) when omitted,
+   * so workspace writes always require an explicit admin/user context.
+   */
+  aiRole?: AiRole;
 };
 
 export type V1Tool<Schema extends z.ZodTypeAny = z.ZodTypeAny> = {
@@ -111,9 +118,10 @@ export class ToolRegistry {
    * arbitrary network fetch) is filtered out here and therefore never reaches
    * the model at all.
    */
-  listForModel(): EngineTool[] {
+  listForModel(role: AiRole = "helper"): EngineTool[] {
     return this.listAllowed()
       .filter((tool) => tool.hiddenFromModel !== true)
+      .filter((tool) => tool.permissions.every((p) => isAllowedForRole(role, p)))
       .map((tool) => ({
         name: tool.id,
         description: tool.description,
@@ -137,7 +145,8 @@ export class ToolRegistry {
       );
     }
 
-    assertPermissions(tool.permissions);
+    // Enforced on every execution path (agent loop, tool API, commands).
+    assertRolePermissions(context.aiRole ?? "helper", tool.permissions);
 
     const parsed = tool.inputSchema.safeParse(rawInput ?? {});
     if (!parsed.success) {
