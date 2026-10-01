@@ -6,14 +6,10 @@ describe("AI role permissions", () => {
     const names = toolRegistry.listForModel("helper").map((t) => t.name);
     expect(names).not.toContain("file_write");
     expect(names).toContain("file_read");
-    await expect(
-      toolRegistry.run("file_write", { path: "a.txt", content: "x" }, { conversationId: "t", aiRole: "helper" }),
-    ).rejects.toThrow();
+    expect(await toolRegistry.run("file_write", { path: "a.txt", content: "x" }, { conversationId: "t", aiRole: "helper" }).then(() => false, () => true)).toBe(true);
   });
   test("missing role defaults to helper", async () => {
-    await expect(
-      toolRegistry.run("file_write", { path: "a.txt", content: "x" }, { conversationId: "t" }),
-    ).rejects.toThrow();
+    expect(await toolRegistry.run("file_write", { path: "a.txt", content: "x" }, { conversationId: "t" }).then(() => false, () => true)).toBe(true);
   });
   test("admin can write", async () => {
     expect(toolRegistry.listForModel("admin").map((t) => t.name)).toContain("file_write");
