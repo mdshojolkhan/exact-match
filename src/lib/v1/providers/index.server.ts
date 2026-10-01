@@ -52,7 +52,12 @@ export function toPublicProvider(def: ProviderDefinition): PublicProvider {
     models: def.models,
     model: config.model ?? def.defaultModel,
     enabled: config.enabled,
-    active: providerStore.getActive() === def.id,
+    role:
+      providerStore.getAdmin() === def.id
+        ? "admin"
+        : config.enabled
+          ? "helper"
+          : null,
     configured: Boolean(key),
     keySource: source,
     keyHint: key ? key.slice(-4) : null,
@@ -70,7 +75,8 @@ export type ProviderUpdate = {
   apiKey?: string | undefined;
   model?: string | undefined;
   enabled?: boolean | undefined;
-  active?: boolean | undefined;
+  /** true = make this provider the Admin AI (previous admin becomes a helper). */
+  admin?: boolean | undefined;
 };
 
 export function updateProvider(id: ProviderId, update: ProviderUpdate) {
@@ -84,12 +90,29 @@ export function updateProvider(id: ProviderId, update: ProviderUpdate) {
   }
   if (update.model !== undefined) next.model = update.model.trim() || null;
   if (update.enabled !== undefined) next.enabled = update.enabled;
+  if (update.admin === true) {
+    const def = getProviderDefinition(id)!;
+    if (!next.enabled) throw new ProviderRoleError("Enable the provider before making it the Admin AI.");
+    if (!next.apiKey && !process.env[def.keyEnv])
+      throw new ProviderRoleError("Add an API key before making this provider the Admin AI.");
+  }
   providerStore.set(next);
-  if (update.active === true) providerStore.setActive(id);
-  if (update.active === false && providerStore.getActive() === id)
-    providerStore.setActive(null);
-  if (!next.enabled && providerStore.getActive() === id)
-    providerStore.setActive(null);
+  if (update.admin === true) providerStore.setAdmin(id);
+  if (update.admin === false && providerStore.getAdmin() === id)
+    providerStore.setAdmin(null);
+  if (!next.enabled && providerStore.getAdmin() === id)
+    providerStore.setAdmin(null);
+}
+
+export class ProviderRoleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProviderRoleError";
+  }
+}
+
+export function getAdminProviderId(): ProviderId | null {
+  return providerStore.getAdmin();
 }
 
 export function removeProvider(id: ProviderId) {
@@ -132,11 +155,34 @@ export async function testProvider(id: ProviderId): Promise<PublicProvider> {
   return toPublicProvider(def);
 }
 
-/** Engine for the active provider, or null when none is usable. */
-export function getActiveProviderEngine(): ModelEngine | null {
-  const id = providerStore.getActive();
+/** Engine for the Admin AI, or null when none is usable. */
+export function getAdminProviderEngine(): ModelEngine | null {
+  const id = providerStore.getAdmin();
   if (!id) return null;
   return createProviderEngine(id);
+}
+
+/**
+ * Picks the engine and role for a chat turn. The role is decided here on the
+ * server, never by the client:
+ *  - a specific non-admin provider → "helper"
+ *  - the Admin AI → "admin"
+ *  - no Admin AI selected → the built-in V1 engine runs as "admin" so the
+ *    App Builder keeps working out of the box.
+ */
+export function resolveChatEngine(
+  providerId: ProviderId | undefined,
+  fallback: () => ModelEngine,
+): { engine: ModelEngine; role: "admin" | "helper"; providerId: ProviderId | null } {
+  const adminId = providerStore.getAdmin();
+  if (providerId && providerId !== adminId) {
+    const engine = createProviderEngine(providerId);
+    if (!engine) throw new ProviderRoleError("That helper AI is not enabled or configured.");
+    return { engine, role: "helper", providerId };
+  }
+  const admin = getAdminProviderEngine();
+  if (admin) return { engine: admin, role: "admin", providerId: adminId };
+  return { engine: fallback(), role: "admin", providerId: null };
 }
 
 export function createProviderEngine(id: ProviderId): ModelEngine | null {
