@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/v1/tools/execute")({
           const result = await toolRegistry.run(
             parsed.data.toolId,
             parsed.data.input ?? {},
-            { conversationId: "settings-panel" },
+            { conversationId: "settings-panel", aiRole: "user" },
             { approved: parsed.data.approved ?? false },
           );
           const response: ToolExecutionResponse = {

@@ -15,6 +15,26 @@ const KEY = ["v1", "providers"];
 
 export function ProvidersSection() {
   const providers = useQuery({ queryKey: KEY, queryFn: fetchProviders });
+  const qc = useQueryClient();
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const list = providers.data ?? [];
+  const admin = list.find((p) => p.role === "admin");
+  const eligible = list.filter((p) => p.enabled && p.configured);
+
+  async function changeAdmin(value: string) {
+    setAdminError(null);
+    try {
+      if (value === "") {
+        if (admin) await saveProvider({ id: admin.id, admin: false });
+      } else {
+        await saveProvider({ id: value as PublicProvider["id"], admin: true });
+      }
+      await qc.invalidateQueries({ queryKey: KEY });
+      await qc.invalidateQueries({ queryKey: ["v1", "status"] });
+    } catch (e) {
+      setAdminError(e instanceof V1ApiError ? e.message : "Could not change the Admin AI.");
+    }
+  }
   return (
     <section className="mt-6 rounded-2xl border border-border bg-card p-6">
       <h2 className="text-sm font-semibold">AI Providers</h2>
@@ -22,7 +42,32 @@ export function ProvidersSection() {
         Keys are sent to the server once and never shown again. Only the last 4
         characters are displayed.
       </p>
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 rounded-xl border border-border/80 p-4">
+        <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span className="font-semibold tracking-wide">
+            ADMIN AI: <span data-testid="text-admin-ai">{admin ? admin.displayName : "Built-in V1 engine"}</span>
+          </span>
+          <select
+            value={admin?.id ?? ""}
+            onChange={(e) => changeAdmin(e.target.value)}
+            className="rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
+            aria-label="Choose Admin AI"
+            data-testid="select-admin-ai"
+          >
+            <option value="">Built-in V1 engine</option>
+            {eligible.map((p) => (
+              <option key={p.id} value={p.id}>{p.displayName}</option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Only the Admin AI can create, edit or delete workspace files and run the App
+          Builder. Every other enabled provider is a Helper AI: chat, analysis and code
+          suggestions only. This is enforced on the server.
+        </p>
+        {adminError ? <p className="mt-2 text-xs text-destructive">{adminError}</p> : null}
+      </div>
+      <div className="mt-3 space-y-3">
         {providers.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (
@@ -73,9 +118,13 @@ function ProviderCard({ provider: p }: { provider: PublicProvider }) {
             <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {statusText}
             </span>
-            {p.active ? (
+            {p.role === "admin" ? (
               <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                Active
+                Admin AI
+              </span>
+            ) : p.role === "helper" ? (
+              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Helper AI
               </span>
             ) : null}
           </div>
@@ -139,14 +188,6 @@ function ProviderCard({ provider: p }: { provider: PublicProvider }) {
         <button type="button" className={btn} disabled={busy !== null || !p.configured} onClick={() => run("test", () => testProviderConnection(p.id))}>
           {busy === "test" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           Test connection
-        </button>
-        <button
-          type="button"
-          className={btn}
-          disabled={busy !== null || !p.enabled || !p.configured}
-          onClick={() => run("active", () => saveProvider({ id: p.id, active: !p.active }))}
-        >
-          {p.active ? "Stop using for chat" : "Use for chat"}
         </button>
         <button type="button" className={btn} disabled={busy !== null} onClick={() => run("remove", () => removeProviderConfig(p.id))}>
           Remove

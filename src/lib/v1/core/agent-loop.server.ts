@@ -19,7 +19,7 @@ import {
   type EngineToolCall,
   type ModelEngine,
 } from "../model-engine/engine";
-import { PermissionDeniedError } from "../security/permissions";
+import { PermissionDeniedError, type AiRole } from "../security/permissions";
 import { ToolError, type ToolRegistry } from "../tools/registry";
 import type { AgentStep } from "../types";
 
@@ -45,6 +45,8 @@ export type AgentLoopRequest = {
   system: string;
   messages: EngineMessage[];
   conversationId: string;
+  /** Role of the AI answering this turn. Defaults to least-privileged "helper". */
+  aiRole?: AiRole;
 };
 
 export type AgentLoopResult = {
@@ -124,7 +126,7 @@ export async function runAgentLoop(
   const steps: AgentStep[] = [];
   const messages: EngineMessage[] = [...request.messages];
 
-  const tools = engine.supportsTools ? registry.listForModel() : [];
+  const tools = engine.supportsTools ? registry.listForModel(request.aiRole ?? "helper") : [];
   let lastText = "";
   let iterations = 0;
 
@@ -161,6 +163,7 @@ export async function runAgentLoop(
       const step = await executeToolCall(call, {
         registry,
         conversationId: request.conversationId,
+        aiRole: request.aiRole ?? "helper",
         approved,
         index: steps.length + 1,
       });
@@ -202,6 +205,7 @@ async function executeToolCall(
   context: {
     registry: ToolRegistry;
     conversationId: string;
+    aiRole: AiRole;
     approved: Set<string>;
     index: number;
   },
@@ -261,7 +265,7 @@ async function executeToolCall(
     const result = await context.registry.run(
       tool.id,
       args.input,
-      { conversationId: context.conversationId },
+      { conversationId: context.conversationId, aiRole: context.aiRole },
       { approved: context.approved.has(tool.id) },
     );
     const summary = truncate(result);

@@ -75,7 +75,8 @@ export type PublicProvider = {
   models: string[];
   model: string;
   enabled: boolean;
-  active: boolean;
+  /** "admin" for the single Admin AI, "helper" for other enabled providers. */
+  role: "admin" | "helper" | null;
   configured: boolean;
   /** "settings" when entered in the UI, "secret" when from a project secret. */
   keySource: "settings" | "secret" | null;

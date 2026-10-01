@@ -10,3 +10,5 @@
 <!-- LOVABLE:END -->
 
 - AI providers are defined once in `src/lib/v1/providers/registry.ts` and served through `/api/v1/providers`; keys live only server-side (store, falling back to project secrets) so the browser never receives them.
+- AI roles (admin/helper/user) are enforced in `ToolRegistry.run` via `assertRolePermissions`; a missing role defaults to "helper" so workspace writes always need an explicit server-decided admin or user context.
+- Chat's AI role is resolved server-side in `resolveChatEngine`; the client may pick a provider but never its role. With no Admin AI selected, the built-in engine acts as admin so the App Builder keeps working.

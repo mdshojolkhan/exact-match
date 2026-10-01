@@ -76,7 +76,7 @@ export function saveProvider(input: {
   apiKey?: string;
   model?: string;
   enabled?: boolean;
-  active?: boolean;
+  admin?: boolean;
 }): Promise<PublicProvider[]> {
   return request<PublicProvider[]>("/api/v1/providers", {
     method: "POST",
@@ -91,6 +91,14 @@ export function testProviderConnection(id: ProviderId): Promise<PublicProvider> 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, action: "test" }),
   });
+}
+
+export function runAiCommand(command: string): Promise<{ ok: boolean; output: string }> {
+  return fetch("/api/v1/ai/command", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ command }),
+  }).then((r) => r.json() as Promise<{ ok: boolean; output: string }>);
 }
 
 export function removeProviderConfig(id: ProviderId): Promise<PublicProvider[]> {

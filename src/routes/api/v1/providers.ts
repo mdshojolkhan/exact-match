@@ -15,7 +15,7 @@ const updateSchema = z.object({
   apiKey: z.string().max(512).optional(),
   model: z.string().max(120).regex(/^[A-Za-z0-9._:/-]*$/).optional(),
   enabled: z.boolean().optional(),
-  active: z.boolean().optional(),
+  admin: z.boolean().optional(),
   action: z.enum(["save", "test"]).default("save"),
 });
 

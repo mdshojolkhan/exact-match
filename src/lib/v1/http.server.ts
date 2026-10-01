@@ -63,6 +63,9 @@ export async function readJsonBody(
 }
 
 export function errorToResponse(error: unknown): Response {
+  if (error instanceof Error && error.name === "ProviderRoleError") {
+    return apiError("invalid_request", error.message, 400);
+  }
   if (error instanceof ModelEngineError) {
     switch (error.code) {
       case "rate_limited":

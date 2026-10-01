@@ -20,23 +20,24 @@ export type ProviderStore = {
   get(id: ProviderId): ProviderConfig | undefined;
   set(config: ProviderConfig): void;
   remove(id: ProviderId): void;
-  getActive(): ProviderId | null;
-  setActive(id: ProviderId | null): void;
+  /** The single Admin AI. Holding one id makes two admins impossible. */
+  getAdmin(): ProviderId | null;
+  setAdmin(id: ProviderId | null): void;
 };
 
 function createMemoryProviderStore(): ProviderStore {
   const configs = new Map<ProviderId, ProviderConfig>();
-  let active: ProviderId | null = null;
+  let admin: ProviderId | null = null;
   return {
     get: (id) => configs.get(id),
     set: (config) => void configs.set(config.id, config),
     remove: (id) => {
       configs.delete(id);
-      if (active === id) active = null;
+      if (admin === id) admin = null;
     },
-    getActive: () => active,
-    setActive: (id) => {
-      active = id;
+    getAdmin: () => admin,
+    setAdmin: (id) => {
+      admin = id;
     },
   };
 }
